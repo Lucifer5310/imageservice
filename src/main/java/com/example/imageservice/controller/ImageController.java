@@ -36,7 +36,7 @@ public class ImageController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_JPEG) // MIME-тип можно определять динамически
+                .contentType(MediaType.parseMediaType(resource.getContentType())) // MIME-тип можно определять динамически
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
     }
