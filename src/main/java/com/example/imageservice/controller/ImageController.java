@@ -22,13 +22,11 @@ public class ImageController {
 
     private final ImageService imageService;
 
-    // Получение списка изображений (метаданные)
     @GetMapping
     public ResponseEntity<List<ImageMetadata>> getAllImagesMetadata() {
         return ResponseEntity.ok(imageService.getAllImagesMetadata());
     }
 
-    // Получение изображения по ID
     @GetMapping("/{id}")
     public ResponseEntity<Resource> getImage(@PathVariable String id) {
         GridFsResource resource = imageService.getImageById(id);
@@ -41,7 +39,6 @@ public class ImageController {
                 .body(resource);
     }
 
-    // Загрузка изображения
     @PostMapping("/upload")
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
@@ -52,7 +49,6 @@ public class ImageController {
         }
     }
 
-    // Удаление изображения
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteImage(@PathVariable String id) {
         imageService.deleteImage(id);

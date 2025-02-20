@@ -23,8 +23,8 @@ public class ImageService {
 
     private final GridFsTemplate gridFsTemplate;
     private final GridFSBucket gridFSBucket;
+    private final KafkaProducerService kafkaProducerService;
 
-    // Загрузка изображения в базу данных
     public String uploadImage(MultipartFile file) throws IOException {
         List<String> allowedContentTypes = List.of("image/jpeg", "image/png", "image/gif", "image/webp");
 
@@ -33,11 +33,12 @@ public class ImageService {
         }
 
         ObjectId fileId = gridFsTemplate.store(file.getInputStream(), file.getOriginalFilename(), file.getContentType());
+        kafkaProducerService.sendMessage("Image is uploaded");
         return fileId.toHexString();
     }
 
-    // Получение списка загруженных изображений (метаданные)
     public List<ImageMetadata> getAllImagesMetadata() {
+        kafkaProducerService.sendMessage("Image's metadata is shown");
         return StreamSupport.stream(gridFsTemplate.find(new Query()).spliterator(), false)
                 .map(file -> new ImageMetadata(
                         file.getObjectId().toHexString(),
@@ -47,7 +48,6 @@ public class ImageService {
                 .collect(Collectors.toList());
     }
 
-    // Получение изображения по ID
     public GridFsResource getImageById(String id) {
         GridFSFile gridFSFile = gridFsTemplate.findOne(Query.query(Criteria.where("_id").is(new ObjectId(id))));
 
@@ -55,11 +55,12 @@ public class ImageService {
             return null;
         }
 
+        kafkaProducerService.sendMessage("Image is downloaded");
         return new GridFsResource(gridFSFile, gridFSBucket.openDownloadStream(gridFSFile.getObjectId()));
     }
 
-    // Удаление изображения
     public void deleteImage(String id) {
         gridFsTemplate.delete(Query.query(Criteria.where("_id").is(id)));
+        kafkaProducerService.sendMessage("Image is deleted");
     }
 }
