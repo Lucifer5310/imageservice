@@ -2,7 +2,7 @@ package com.example.imageservice.controller;
 
 import com.example.imageservice.dto.ImageMetadata;
 import com.example.imageservice.service.ImageService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.http.HttpHeaders;
@@ -17,10 +17,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/images")
-@RequiredArgsConstructor
 public class ImageController {
 
     private final ImageService imageService;
+
+    @Autowired
+    public ImageController(ImageService imageService) {
+        this.imageService = imageService;
+    }
 
     @GetMapping
     public ResponseEntity<List<ImageMetadata>> getAllImagesMetadata() {

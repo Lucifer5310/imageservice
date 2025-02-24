@@ -3,8 +3,9 @@ package com.example.imageservice.service;
 import com.example.imageservice.dto.ImageMetadata;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.model.GridFSFile;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.springframework.stereotype.Service;
@@ -18,12 +19,17 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Service
-@RequiredArgsConstructor
 public class ImageService {
 
     private final GridFsTemplate gridFsTemplate;
     private final GridFSBucket gridFSBucket;
     private final KafkaProducerService kafkaProducerService;
+
+    public ImageService(GridFsTemplate gridFsTemplate, GridFSBucket gridFSBucket, KafkaProducerService kafkaProducerService) {
+        this.gridFsTemplate = gridFsTemplate;
+        this.gridFSBucket = gridFSBucket;
+        this.kafkaProducerService = kafkaProducerService;
+    }
 
     public String uploadImage(MultipartFile file) throws IOException {
         List<String> allowedContentTypes = List.of("image/jpeg", "image/png", "image/gif", "image/webp");
@@ -56,7 +62,7 @@ public class ImageService {
         }
 
         kafkaProducerService.sendMessage("Image is downloaded");
-        return new GridFsResource(gridFSFile, gridFSBucket.openDownloadStream(gridFSFile.getObjectId()));
+        return new GridFsResource(gridFSFile, gridFSBucket.openDownloadStream(gridFSFile.getFilename()));
     }
 
     public void deleteImage(String id) {
