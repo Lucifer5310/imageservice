@@ -1,11 +1,10 @@
 package com.example.imageservice.service;
 
+import com.example.imageservice.dto.ImageData;
 import com.example.imageservice.dto.ImageMetadata;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.model.GridFSFile;
-import lombok.AllArgsConstructor;
 import org.bson.types.ObjectId;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.springframework.stereotype.Service;
@@ -13,7 +12,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -54,19 +55,45 @@ public class ImageService {
                 .collect(Collectors.toList());
     }
 
-    public GridFsResource getImageById(String id) {
-        GridFSFile gridFSFile = gridFsTemplate.findOne(Query.query(Criteria.where("_id").is(new ObjectId(id))));
+    // Новый метод: получение всех картинок с метаданными и содержимым в виде byte[]
+    public List<ImageData> getAllImages() throws IOException {
+        kafkaProducerService.sendMessage("All images retrieved");
+        return StreamSupport.stream(gridFsTemplate.find(new Query()).spliterator(), false)
+                .map(file -> {
+                    try {
+                        GridFsResource resource = new GridFsResource(file, gridFSBucket.openDownloadStream(file.getFilename()));
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        try (InputStream inputStream = resource.getInputStream()) {
+                            inputStream.transferTo(outputStream);
+                        }
+                        return new ImageData(
+                                file.getObjectId().toHexString(),
+                                file.getFilename(),
+                                file.getUploadDate(),
+                                file.getLength(),
+                                resource.getContentType(),
+                                outputStream.toByteArray()
+                        );
+                    } catch (IOException e) {
+                        throw new RuntimeException("Ошибка чтения изображения: " + file.getFilename(), e);
+                    }
+                })
+                .collect(Collectors.toList());
+    }
+
+    public GridFsResource getImageByFilename(String filename) {
+        GridFSFile gridFSFile = gridFsTemplate.findOne(Query.query(Criteria.where("filename").is(filename)));
 
         if (gridFSFile == null) {
             return null;
         }
 
-        kafkaProducerService.sendMessage("Image is downloaded");
+        kafkaProducerService.sendMessage("Image is downloaded: " + filename);
         return new GridFsResource(gridFSFile, gridFSBucket.openDownloadStream(gridFSFile.getFilename()));
     }
 
-    public void deleteImage(String id) {
-        gridFsTemplate.delete(Query.query(Criteria.where("_id").is(id)));
-        kafkaProducerService.sendMessage("Image is deleted");
+    public void deleteImageByFilename(String filename) {
+        gridFsTemplate.delete(Query.query(Criteria.where("filename").is(filename)));
+        kafkaProducerService.sendMessage("Image is deleted: " + filename);
     }
 }

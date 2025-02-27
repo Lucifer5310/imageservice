@@ -1,8 +1,8 @@
 package com.example.imageservice.controller;
 
+import com.example.imageservice.dto.ImageData;
 import com.example.imageservice.dto.ImageMetadata;
 import com.example.imageservice.service.ImageService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.http.HttpHeaders;
@@ -21,24 +21,37 @@ public class ImageController {
 
     private final ImageService imageService;
 
-    @Autowired
     public ImageController(ImageService imageService) {
         this.imageService = imageService;
     }
 
-    @GetMapping
+    @GetMapping("/metadata")
     public ResponseEntity<List<ImageMetadata>> getAllImagesMetadata() {
         return ResponseEntity.ok(imageService.getAllImagesMetadata());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Resource> getImage(@PathVariable String id) {
-        GridFsResource resource = imageService.getImageById(id);
+    // Обновлённый эндпоинт: возвращает список картинок с метаданными и содержимым
+    @GetMapping("/all")
+    public ResponseEntity<List<ImageData>> getAllImages() {
+        try {
+            List<ImageData> images = imageService.getAllImages();
+            if (images.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(images);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/download/{filename:.+}")
+    public ResponseEntity<Resource> getImageByFilename(@PathVariable String filename) {
+        GridFsResource resource = imageService.getImageByFilename(filename);
         if (resource == null) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(resource.getContentType())) // MIME-тип можно определять динамически
+                .contentType(MediaType.parseMediaType(resource.getContentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
     }
@@ -53,9 +66,9 @@ public class ImageController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteImage(@PathVariable String id) {
-        imageService.deleteImage(id);
+    @DeleteMapping("/delete/{filename:.+}")
+    public ResponseEntity<Void> deleteImageByFilename(@PathVariable String filename) {
+        imageService.deleteImageByFilename(filename);
         return ResponseEntity.noContent().build();
     }
 }
