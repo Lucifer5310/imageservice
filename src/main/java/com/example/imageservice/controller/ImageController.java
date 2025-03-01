@@ -30,7 +30,6 @@ public class ImageController {
         return ResponseEntity.ok(imageService.getAllImagesMetadata());
     }
 
-    // Обновлённый эндпоинт: возвращает список картинок с метаданными и содержимым
     @GetMapping("/all")
     public ResponseEntity<List<ImageData>> getAllImages() {
         try {
@@ -41,6 +40,26 @@ public class ImageController {
             return ResponseEntity.ok(images);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/{filename:.+}")
+    public ResponseEntity<byte[]> getImageContentByFilename(@PathVariable String filename) {
+        try {
+            byte[] imageContent = imageService.getImageContentByFilename(filename);
+            String contentType = imageService.getImageByFilename(filename).getContentType(); // Получаем тип контента
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+            headers.add(HttpHeaders.PRAGMA, "no-cache");
+            headers.add(HttpHeaders.EXPIRES, "0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(imageContent);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
     }
 
@@ -63,6 +82,19 @@ public class ImageController {
             return ResponseEntity.ok(id);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка загрузки файла");
+        }
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<List<String>> getAllFilenames() {
+        try {
+            List<String> filenames = imageService.getAllFilenames();
+            if (filenames.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(filenames);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 

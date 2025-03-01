@@ -55,7 +55,6 @@ public class ImageService {
                 .collect(Collectors.toList());
     }
 
-    // Новый метод: получение всех картинок с метаданными и содержимым в виде byte[]
     public List<ImageData> getAllImages() throws IOException {
         kafkaProducerService.sendMessage("All images retrieved");
         return StreamSupport.stream(gridFsTemplate.find(new Query()).spliterator(), false)
@@ -81,6 +80,25 @@ public class ImageService {
                 .collect(Collectors.toList());
     }
 
+    public byte[] getImageContentByFilename(String filename) throws IOException {
+        if (filename == null || filename.trim().isEmpty()) {
+            throw new IllegalArgumentException("Имя файла не указано");
+        }
+
+        GridFSFile gridFSFile = gridFsTemplate.findOne(Query.query(Criteria.where("filename").is(filename)));
+        if (gridFSFile == null) {
+            throw new IOException("Изображение с именем " + filename + " не найдено");
+        }
+
+        kafkaProducerService.sendMessage("Image content retrieved: " + filename);
+        GridFsResource resource = new GridFsResource(gridFSFile, gridFSBucket.openDownloadStream(gridFSFile.getFilename()));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (InputStream inputStream = resource.getInputStream()) {
+            inputStream.transferTo(outputStream);
+        }
+        return outputStream.toByteArray();
+    }
+
     public GridFsResource getImageByFilename(String filename) {
         GridFSFile gridFSFile = gridFsTemplate.findOne(Query.query(Criteria.where("filename").is(filename)));
 
@@ -90,6 +108,14 @@ public class ImageService {
 
         kafkaProducerService.sendMessage("Image is downloaded: " + filename);
         return new GridFsResource(gridFSFile, gridFSBucket.openDownloadStream(gridFSFile.getFilename()));
+    }
+
+    public List<String> getAllFilenames() {
+        kafkaProducerService.sendMessage("All image filenames retrieved");
+        return StreamSupport.stream(gridFsTemplate.find(new Query()).spliterator(), false)
+                .map(GridFSFile::getFilename)
+                .filter(filename -> filename != null)
+                .collect(Collectors.toList());
     }
 
     public void deleteImageByFilename(String filename) {
